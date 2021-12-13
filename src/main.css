@@ -234,7 +234,8 @@
 .filter-block {
     display: flex;
     margin-bottom: 15px;
-    flex-direction: column;
+    flex-direction: row-reverse;
+    justify-content: space-between;
 }
 
 .filter-block button {
@@ -258,4 +259,5 @@
     padding: 8px;
     border-radius: 8px;
     border: 1px solid lightblue;
+    margin-left: 10px;
 }
