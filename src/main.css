@@ -247,7 +247,15 @@
     padding: 7px 20px;
     border: 1px solid grey;
 }
+
 .filter-block div {
     display: flex;
     margin-bottom: 10px;
+    align-items: center;
+}
+
+.filter-block input {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid lightblue;
 }

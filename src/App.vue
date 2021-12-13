@@ -35,11 +35,13 @@
           <button
             @click="page = page - 1"
             v-if="page > 1"
-          >Назад</button>
+          >Назад
+          </button>
           <button
             @click="page = page + 1"
             v-if="hasNextPage"
-          >Вперёд</button>
+          >Вперёд
+          </button>
         </div>
         <div>Фильтр:
           <input type="text"
@@ -62,7 +64,7 @@
             <span class="line"> - </span>
             <span class="currency">USD</span>
           </div>
-          <div class="card-item__price">{{ t.price }}</div>
+          <div class="card-item__price">{{ formatPrice(t.price) }}</div>
           <button class="card-item__remove"
                   @click.stop="remove(t)"
           >
@@ -97,6 +99,9 @@
 
 <script>
 
+// import {loadTickers} from "@/api";
+import {subscribeToTicker, unsubscribeFromTicker} from "@/api";
+
 
 export default {
   data() {
@@ -128,9 +133,17 @@ export default {
     if (tickersData) {
       this.tickers = JSON.parse(tickersData)
       this.tickers.forEach(ticker => {
-        this.subscribeToUpdates(ticker.name)
+        subscribeToTicker(ticker.name, newPrice => {
+          this.updateTicker(ticker.name, newPrice)
+        });
       })
     }
+
+    setInterval(this.updateTickers, 3000)
+    // this.tickers.find(t => t.name === tickerName).price = exchangeData.USD > 1 ? exchangeData.USD.toFixed(2) : exchangeData.USD.toPrecision(2)
+    // if (this.selectedTicker?.name === tickerName) {
+    //   this.graph.push(exchangeData.USD)
+    // }
   },
   beforeMount() {
     let loadingNames = async () => {
@@ -141,6 +154,7 @@ export default {
     loadingNames()
   },
   computed: {
+
     startIndex() {
       return (this.page - 1) * 6
     },
@@ -151,7 +165,7 @@ export default {
       return this.tickers.filter(ticker => ticker.name.includes(this.filter));
     },
     paginatedTickers() {
-      return this.filteredTickers.slice(this.startIndex,this.endIndex)
+      return this.filteredTickers.slice(this.startIndex, this.endIndex)
     },
     hasNextPage() {
       return this.filteredTickers.length > this.endIndex
@@ -176,20 +190,36 @@ export default {
     }
   },
   methods: {
-
-    subscribeToUpdates(tickerName) {
-      setInterval(async () => {
-        const f = await
-          fetch(`https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=138552152188d7df689b40742ec0f7a20592d4010065de6a00a161fcf51d2191`);
-        const data = await f.json();
-
-        this.tickers.find(t => t.name === tickerName).price = data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2)
-        if (this.selectedTicker?.name === tickerName) {
-          this.graph.push(data.USD)
-        }
-      }, 3000)
-      this.ticker = ''
+    updateTicker(tickerName, price) {
+      this.tickers
+        .filter(t => t.name === tickerName)
+        .forEach(t => {
+          if (t === this.selectedTicker) {
+            this.graph.push(price);
+          }
+          t.price = price;
+        });
     },
+
+    formatPrice(price) {
+      if (price === '-') {
+        return price
+      }
+      return price > 1 ? price.toFixed(2) : price.toPrecision(2);
+    },
+
+    // async updateTickers() {
+    //   // if (!this.tickers.length) {
+    //   //   return
+    //   // }
+    //   //
+    //   // const exchangeData = await loadTickers(this.tickers.map(t => t.name));
+    //   //
+    //   // this.tickers.forEach(ticker => {
+    //   //   const price = exchangeData[ticker.name.toUpperCase()];
+    //   //   ticker.price = price ?? '-';
+    //   // })
+    // },
     add() {
       const currentTicker = {
         name: this.ticker,
@@ -203,8 +233,12 @@ export default {
       if (this.ticker !== '') {
         // this.tickers.push(currentTicker)
         this.tickers = [...this.tickers, currentTicker]
-
-        this.subscribeToUpdates(currentTicker.name)
+        this.ticker = '';
+        this.filter = '';
+        subscribeToTicker(currentTicker.name, newPrice => {
+          this.updateTicker(currentTicker.name, newPrice)
+        });
+        // this.updateTickers(currentTicker.name)
       }
     },
     add2input(elem) {
@@ -242,6 +276,7 @@ export default {
       if (this.selectedTicker === el) {
         this.selectedTicker = null
       }
+      unsubscribeFromTicker(el.name)
     },
   },
   watch: {
