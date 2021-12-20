@@ -3,7 +3,7 @@
     <div class="header">
       <label>
         <span>Тикер</span>
-        <input type="text" placeholder="Например DOGE"
+        <input type="text" placeholder="Например BTC"
                v-model="ticker"
                @keydown.enter="add"
                @input="recommend"
@@ -84,14 +84,21 @@
           <div class="chart-title">{{ selectedTicker.name }} - USD</div>
           <div class="chart-close" @click="selectedTicker = null">х</div>
         </div>
-        <div class="chart">
+        <div class="chart"
+             ref="graph"
+        >
           <div class="chart-item"
                v-for="(bar, idx) in normalizedGraph"
                :key="idx"
-               :style="{ height: `${bar}%` }"
+               :style="{ height: `${bar}%`, width: graphElementWidth + 'px' }"
                :title="bar"
+               ref="graphElement"
           ></div>
         </div>
+        <input type="text"
+               v-model="graphElementWidth"
+               title="Ширина столбца"
+        >
       </div>
     </div>
   </div>
@@ -115,6 +122,8 @@ export default {
       allTickersObj: {},
       tickerAlreadyHave: false,
       page: 1,
+      maxGraphElements: 1,
+      graphElementWidth: 5
     }
   },
   created() {
@@ -130,20 +139,19 @@ export default {
 
     const tickersData = localStorage.getItem('cryptonomicon-list')
 
+    const graphEl = localStorage.getItem('cryptonomicon-column')
+
     if (tickersData) {
       this.tickers = JSON.parse(tickersData)
+      this.graphElementWidth = JSON.parse(graphEl)
+
+      console.log(this.tickers);
       this.tickers.forEach(ticker => {
         subscribeToTicker(ticker.name, newPrice => {
           this.updateTicker(ticker.name, newPrice)
         });
       })
     }
-
-    setInterval(this.updateTickers, 3000)
-    // this.tickers.find(t => t.name === tickerName).price = exchangeData.USD > 1 ? exchangeData.USD.toFixed(2) : exchangeData.USD.toPrecision(2)
-    // if (this.selectedTicker?.name === tickerName) {
-    //   this.graph.push(exchangeData.USD)
-    // }
   },
   beforeMount() {
     let loadingNames = async () => {
@@ -152,6 +160,13 @@ export default {
       this.allTickersObj = this.allTickersObj.Data;
     }
     loadingNames()
+  },
+  mounted() {
+    window.addEventListener('resize', this.calculateMaxGraphElements)
+
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.calculateMaxGraphElements)
   },
   computed: {
 
@@ -190,12 +205,25 @@ export default {
     }
   },
   methods: {
+    calculateMaxGraphElements() {
+      if (!this.$refs.graph) {
+        return;
+      }
+      this.maxGraphElements = this.$refs.graph.clientWidth / this.graphElementWidth
+    },
+
     updateTicker(tickerName, price) {
+
+      this.calculateMaxGraphElements()
       this.tickers
         .filter(t => t.name === tickerName)
         .forEach(t => {
           if (t === this.selectedTicker) {
             this.graph.push(price);
+
+            if (this.graph.length > this.maxGraphElements) {
+              this.graph = this.graph.slice(this.graph.length - this.maxGraphElements)
+            }
           }
           t.price = price;
         });
@@ -225,6 +253,7 @@ export default {
         name: this.ticker,
         price: '-'
       }
+
       this.filter = ''
       if (this.tickers.find(t => t.name === currentTicker.name)) {
         this.tickerAlreadyHave = true
@@ -291,6 +320,9 @@ export default {
         this.page -= 1
       }
     },
+    graphElementWidth() {
+      localStorage.setItem('cryptonomicon-column', JSON.stringify(this.graphElementWidth))
+    },
     filter() {
       this.page = 1;
     },
@@ -300,7 +332,8 @@ export default {
         document.title,
         `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
       )
-    }
+    },
+
   }
 }
 </script>
