@@ -1,34 +1,10 @@
 <template>
   <div class="container">
-    <div class="header">
-      <label>
-        <span>Тикер</span>
-        <input type="text" placeholder="Например BTC"
-               v-model="ticker"
-               @keydown.enter="add"
-               @input="recommend"
-        >
-      </label>
-      <div class="recommends" v-if="recList.length > 0">
-        <span
-          v-for="item in recList"
-          :key="item"
-          @click="add2input(item)"
-        >{{ item }}</span>
-      </div>
-      <div class="ticker-error" v-if="tickerAlreadyHave">Такой тикер уже добавлен!</div>
-      <button class="header-btn"
-              @click="add"
-      >
-        <svg fill="none" height="24" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-             viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10"/>
-          <line fill="#fff" x1="12" x2="12" y1="8" y2="16"/>
-          <line fill="#fff" x1="8" x2="16" y1="12" y2="12"/>
-        </svg>
-        Добавить
-      </button>
-    </div>
+    <add-ticker
+      @add-ticker-from-inner="add"
+      :arrTickers="tickers"
+      :disabled="tooManyTickersAdded"
+    ></add-ticker>
     <div class="main-content" v-if="tickers.length !== 0">
       <div class="filter-block">
         <div>
@@ -95,10 +71,14 @@
                ref="graphElement"
           ></div>
         </div>
-        <input type="text"
-               v-model="graphElementWidth"
-               title="Ширина столбца"
-        >
+        <label class="change-column-width">
+          <span>Изменить ширину столбца</span>
+          <input type="text"
+                 v-model="graphElementWidth"
+                 title="Ширина столбца"
+          >
+        </label>
+
       </div>
     </div>
   </div>
@@ -106,24 +86,25 @@
 
 <script>
 
-// import {loadTickers} from "@/api";
 import {subscribeToTicker, unsubscribeFromTicker} from "@/api";
-
+import AddTicker from './components/AddTicker'
 
 export default {
+  components: {
+    AddTicker
+  },
   data() {
     return {
-      ticker: '',
       filter: '',
       tickers: [],
       selectedTicker: null,
       graph: [],
-      recList: {},
-      allTickersObj: {},
-      tickerAlreadyHave: false,
+      // recList: {},
+      // allTickersObj: {},
+      // tickerAlreadyHave: false,
       page: 1,
       maxGraphElements: 1,
-      graphElementWidth: 5
+      graphElementWidth: 5,
     }
   },
   created() {
@@ -145,7 +126,6 @@ export default {
       this.tickers = JSON.parse(tickersData)
       this.graphElementWidth = JSON.parse(graphEl)
 
-      console.log(this.tickers);
       this.tickers.forEach(ticker => {
         subscribeToTicker(ticker.name, newPrice => {
           this.updateTicker(ticker.name, newPrice)
@@ -153,23 +133,24 @@ export default {
       })
     }
   },
-  beforeMount() {
-    let loadingNames = async () => {
-      const fetchNames = await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true');
-      this.allTickersObj = await fetchNames.json();
-      this.allTickersObj = this.allTickersObj.Data;
-    }
-    loadingNames()
-  },
+  // beforeMount() {
+  //   let loadingNames = async () => {
+  //     const fetchNames = await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true');
+  //     this.allTickersObj = await fetchNames.json();
+  //     this.allTickersObj = this.allTickersObj.Data;
+  //   }
+  //   loadingNames()
+  // },
   mounted() {
     window.addEventListener('resize', this.calculateMaxGraphElements)
-
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.calculateMaxGraphElements)
   },
   computed: {
-
+    tooManyTickersAdded() {
+      return this.tickers.length > 4;
+    },
     startIndex() {
       return (this.page - 1) * 6
     },
@@ -205,6 +186,10 @@ export default {
     }
   },
   methods: {
+    transTickers(tickers) {
+      tickers = this.tickers
+      return tickers;
+    },
     calculateMaxGraphElements() {
       if (!this.$refs.graph) {
         return;
@@ -213,14 +198,12 @@ export default {
     },
 
     updateTicker(tickerName, price) {
-
-      this.calculateMaxGraphElements()
+      // this.calculateMaxGraphElements()
       this.tickers
         .filter(t => t.name === tickerName)
         .forEach(t => {
           if (t === this.selectedTicker) {
             this.graph.push(price);
-
             if (this.graph.length > this.maxGraphElements) {
               this.graph = this.graph.slice(this.graph.length - this.maxGraphElements)
             }
@@ -235,31 +218,15 @@ export default {
       }
       return price > 1 ? price.toFixed(2) : price.toPrecision(2);
     },
-
-    // async updateTickers() {
-    //   // if (!this.tickers.length) {
-    //   //   return
-    //   // }
-    //   //
-    //   // const exchangeData = await loadTickers(this.tickers.map(t => t.name));
-    //   //
-    //   // this.tickers.forEach(ticker => {
-    //   //   const price = exchangeData[ticker.name.toUpperCase()];
-    //   //   ticker.price = price ?? '-';
-    //   // })
-    // },
-    add() {
+    add(ticker) {
       const currentTicker = {
-        name: this.ticker,
+        name: ticker,
         price: '-'
       }
 
       this.filter = ''
-      if (this.tickers.find(t => t.name === currentTicker.name)) {
-        this.tickerAlreadyHave = true
-        return
-      }
-      if (this.ticker !== '') {
+
+      if (ticker !== '') {
         // this.tickers.push(currentTicker)
         this.tickers = [...this.tickers, currentTicker]
         this.ticker = '';
@@ -269,34 +236,10 @@ export default {
         });
         // this.updateTickers(currentTicker.name)
       }
-    },
-    add2input(elem) {
-      if (this.tickers.find(t => t.name === elem)) {
-        this.tickerAlreadyHave = true
-      } else {
-        this.ticker = elem
-        this.add()
-        this.tickerAlreadyHave = false
-      }
-    },
-    recommend() {
-      this.tickerAlreadyHave = false
-      const myObj = this.allTickersObj;
-      if (this.ticker.length !== 0) {
-        let filtered = Object.values(myObj).filter(item => item['FullName'].includes(this.ticker));
-        let formattedArr = []
-        filtered.forEach(obj => {
-          formattedArr.push(obj['Symbol'])
-        })
-        this.recList = Array.from(Object.values(formattedArr))
-        this.recList.splice(4)
-      } else {
-        this.recList.splice(0)
-      }
+      return this.tickers
     },
     select(ticker) {
       this.selectedTicker = ticker;
-
     },
     remove(el) {
       this.tickers = this.tickers.filter(tickersElement => tickersElement !== el)
@@ -306,6 +249,7 @@ export default {
         this.selectedTicker = null
       }
       unsubscribeFromTicker(el.name)
+
     },
   },
   watch: {
@@ -314,6 +258,7 @@ export default {
     },
     selectedTicker() {
       this.graph = [];
+      this.$nextTick().then(this.calculateMaxGraphElements)
     },
     paginatedTickers() {
       if (this.paginatedTickers.length === 0 && this.page > 1) {
@@ -322,6 +267,7 @@ export default {
     },
     graphElementWidth() {
       localStorage.setItem('cryptonomicon-column', JSON.stringify(this.graphElementWidth))
+      this.calculateMaxGraphElements();
     },
     filter() {
       this.page = 1;

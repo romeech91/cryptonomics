@@ -118,6 +118,7 @@
     border: 3px solid transparent;
     transition: .3s;
     padding: 20px;
+    box-shadow: 1px 1px 6px lightgrey;
 }
 
 .card-item:hover,
@@ -259,4 +260,28 @@
     border-radius: 8px;
     border: 1px solid lightblue;
     margin-left: 10px;
+}
+
+.change-column-width  {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.change-column-width span {
+    font-size: 14px;
+    display: block;
+    margin-right: 10px;
+    margin-bottom: 5px;
+}
+.change-column-width input {
+    width: 100px;
+    border-radius: 5px;
+    padding: 8px;
+    border: 1px solid lightblue;
+}
+
+.opacity-50 {
+    opacity: 0.5;
+    cursor: no-drop;
 }
