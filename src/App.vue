@@ -55,31 +55,14 @@
           </button>
         </div>
       </div>
-      <div class="chart-wrapper" v-if="selectedTicker">
-        <div class="chart-header">
-          <div class="chart-title">{{ selectedTicker.name }} - USD</div>
-          <div class="chart-close" @click="selectedTicker = null">х</div>
-        </div>
-        <div class="chart"
-             ref="graph"
-        >
-          <div class="chart-item"
-               v-for="(bar, idx) in normalizedGraph"
-               :key="idx"
-               :style="{ height: `${bar}%`, width: graphElementWidth + 'px' }"
-               :title="bar"
-               ref="graphElement"
-          ></div>
-        </div>
-        <label class="change-column-width">
-          <span>Изменить ширину столбца</span>
-          <input type="text"
-                 v-model="graphElementWidth"
-                 title="Ширина столбца"
-          >
-        </label>
+      <graph
+        :selected="selectedTicker"
+        @close-chart="selectedTicker = null"
+        v-if="selectedTicker !== null"
+        :graph="graph"
+        @max-columns="maxCols"
 
-      </div>
+      ></graph>
     </div>
   </div>
 </template>
@@ -88,10 +71,11 @@
 
 import {subscribeToTicker, unsubscribeFromTicker} from "@/api";
 import AddTicker from './components/AddTicker'
+import Graph from './components/Graph'
 
 export default {
   components: {
-    AddTicker
+    AddTicker, Graph
   },
   data() {
     return {
@@ -99,12 +83,8 @@ export default {
       tickers: [],
       selectedTicker: null,
       graph: [],
-      // recList: {},
-      // allTickersObj: {},
-      // tickerAlreadyHave: false,
       page: 1,
-      maxGraphElements: 1,
-      graphElementWidth: 5,
+      maxEls: 0,
     }
   },
   created() {
@@ -120,11 +100,11 @@ export default {
 
     const tickersData = localStorage.getItem('cryptonomicon-list')
 
-    const graphEl = localStorage.getItem('cryptonomicon-column')
+    // const graphEl = localStorage.getItem('cryptonomicon-column')
 
     if (tickersData) {
       this.tickers = JSON.parse(tickersData)
-      this.graphElementWidth = JSON.parse(graphEl)
+      // this.graphElementWidth = JSON.parse(graphEl)
 
       this.tickers.forEach(ticker => {
         subscribeToTicker(ticker.name, newPrice => {
@@ -166,18 +146,7 @@ export default {
     hasNextPage() {
       return this.filteredTickers.length > this.endIndex
     },
-    normalizedGraph() {
-      const maxValue = Math.max(...this.graph)
-      const minValue = Math.min(...this.graph)
 
-      if (maxValue === minValue) {
-        return this.graph.map(() => 50)
-      }
-
-      return this.graph.map(
-        price => 5 + ((price - minValue) * 95 / (maxValue - minValue))
-      )
-    },
     pageStateOptions() {
       return {
         filter: this.filter,
@@ -186,26 +155,21 @@ export default {
     }
   },
   methods: {
-    transTickers(tickers) {
-      tickers = this.tickers
-      return tickers;
-    },
-    calculateMaxGraphElements() {
-      if (!this.$refs.graph) {
-        return;
-      }
-      this.maxGraphElements = this.$refs.graph.clientWidth / this.graphElementWidth
+    maxCols(data) {
+      this.maxEls = data;
+      // console.log(this.maxEls);
     },
 
     updateTicker(tickerName, price) {
       // this.calculateMaxGraphElements()
+
       this.tickers
         .filter(t => t.name === tickerName)
         .forEach(t => {
           if (t === this.selectedTicker) {
             this.graph.push(price);
-            if (this.graph.length > this.maxGraphElements) {
-              this.graph = this.graph.slice(this.graph.length - this.maxGraphElements)
+            if (this.graph.length > this.maxEls) {
+              this.graph = this.graph.slice(this.graph.length - this.maxEls)
             }
           }
           t.price = price;
@@ -265,10 +229,7 @@ export default {
         this.page -= 1
       }
     },
-    graphElementWidth() {
-      localStorage.setItem('cryptonomicon-column', JSON.stringify(this.graphElementWidth))
-      this.calculateMaxGraphElements();
-    },
+
     filter() {
       this.page = 1;
     },
